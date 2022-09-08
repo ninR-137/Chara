@@ -35,7 +35,7 @@ public class GlobalVariables {
     public static final ExtendViewport extendMainViewPort = new ExtendViewport(mainCamera.viewportWidth, mainCamera.viewportHeight, mainCamera);
     public static final float WORLD_GRAVITY = -20f;
 
-    public static final float PLAYER_MOVEMENT_VELOCITY = 16f;
+    public static final float PLAYER_MOVEMENT_VELOCITY = 17f;
     public static final float PLAYER_JUMP_FORCE = 2000;
 
     public static final String PlayerUserData = "Player", FootUserData = "Foot";
@@ -63,7 +63,7 @@ public class GlobalVariables {
             Vector2 v = new Vector2(rightLegP2.x - rightLegP1.x, rightLegP2.y - rightLegP1.y);
             Vector2 vnorm = v.nor();
             rightLegAngleInDegrees = (float) Math.toDegrees(Math.acos(vnorm.dot(normal))) - 90;
-            System.out.println(Math.round(rightLegAngleInDegrees));
+            //System.out.println(Math.round(rightLegAngleInDegrees));
             return 0;
         }
     };
@@ -74,7 +74,7 @@ public class GlobalVariables {
             Vector2 v = new Vector2(leftLegP2.x - leftLegP1.x, leftLegP2.y - leftLegP1.y);
             Vector2 vnorm = v.nor();
             leftLegAngleInDegrees = (float) Math.toDegrees(Math.acos(vnorm.dot(normal))) - 90;
-            System.out.println(Math.round(leftLegAngleInDegrees));
+            //System.out.println(Math.round(leftLegAngleInDegrees));
             return 0;
         }
     };

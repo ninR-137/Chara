@@ -102,10 +102,10 @@ public class MainGame extends ApplicationAdapter {
 
 		Vector3 position = mainCamera.position;
 		float adjustmentX = 0;
-		if(player.currentVelocity.x != 0)adjustmentX = player.playerState.isFacingRight ? 5 : -5;
-		float lerp = Math.abs(player.currentVelocity.len()) > 0 ? 0.2f : 0.015f;
+		if(player.currentVelocity.x != 0)adjustmentX = player.playerState.isFacingRight ? 10: -10;
+		float lerp = Math.abs(player.currentVelocity.len()) > 0 ? 0.05f : 0.015f;
 
-		position.x = mainCamera.position.x + (player.positionX - mainCamera.position.x) * lerp;
+		position.x = mainCamera.position.x + (player.positionX - (mainCamera.position.x - adjustmentX)) * lerp;
 		position.y = mainCamera.position.y + (player.positionY - mainCamera.position.y) * lerp;
 		mainCamera.position.set(position);
 		mainCamera.update();
@@ -116,5 +116,6 @@ public class MainGame extends ApplicationAdapter {
 		img.dispose();
 		GlobalVariables.dispose();
 		sr.dispose();
+		player.dispose();
 	}
 }

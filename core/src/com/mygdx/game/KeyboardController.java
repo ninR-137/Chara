@@ -8,6 +8,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.mygdx.game.Entities.PlayerState;
 
 import static com.mygdx.game.GlobalVariables.*;
 
@@ -28,28 +29,30 @@ public class KeyboardController implements InputProcessor{
 
         switch (keycode){
             case Input.Keys.W : {
-                if(b2dModel.m_jumpTimeout > 0) break;
-                if(B2dModel.numFootContacts > 0 || B2dModel.remainingDoubleJump > 0) {
-                    b2dModel.remainingJumpSteps = 6;
-                    if(B2dModel.numFootContacts <= 0) B2dModel.remainingDoubleJump--;
-                }
                 held_W = true;
-                b2dModel.m_jumpTimeout = 15;
+                if(B2dModel.m_jumpTimeout > 0) break;
+                if(B2dModel.numFootContacts > 0 || B2dModel.remainingDoubleJump > 0) b2dModel.player.transitionState(PlayerState.JUMPING);
                 break;
             }
             case Input.Keys.A: {
                 held_A = true;
-                //b2dModel.player.playerState.isFacingRight = false;
+                if(B2dModel.numFootContacts != 0)  b2dModel.player.transitionState(PlayerState.RUNNING);
+                if(B2dModel.numFootContacts >= 0) b2dModel.player.playerState.subCharacterState = PlayerState.GLIDING;
+                b2dModel.player.playerState.isFacingRight = false;
                 break;
             }
             case Input.Keys.D: {
                 held_D = true;
-                //b2dModel.player.playerState.isFacingRight = true;
+                if(B2dModel.numFootContacts != 0)  b2dModel.player.transitionState(PlayerState.RUNNING);
+                if(B2dModel.numFootContacts >= 0) b2dModel.player.playerState.subCharacterState = PlayerState.GLIDING;
+                b2dModel.player.playerState.isFacingRight = true;
                 break;
             }
+            /*
             case Input.Keys.SHIFT_LEFT: {
                 b2dModel.isPlayerBoosting = true;
             }
+            */
         }
         return false;
     }
@@ -62,10 +65,14 @@ public class KeyboardController implements InputProcessor{
                 break;
             }
             case Input.Keys.A: {
+                if(B2dModel.numFootContacts != 0)  b2dModel.player.transitionState(PlayerState.IDLE);
+                if(B2dModel.numFootContacts >= 0) b2dModel.player.playerState.subCharacterState = PlayerState.NONE;
                 held_A = false;
                 break;
             }
             case Input.Keys.D: {
+                if(B2dModel.numFootContacts != 0)  b2dModel.player.transitionState(PlayerState.IDLE);
+                if(B2dModel.numFootContacts >= 0) b2dModel.player.playerState.subCharacterState = PlayerState.NONE;
                 held_D = false;
                 break;
             }
@@ -103,8 +110,7 @@ public class KeyboardController implements InputProcessor{
             p1.set(tmp.x, tmp.y);
         }
         return true;
-
-         */
+        */
         return true;
     }
 

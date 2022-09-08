@@ -7,6 +7,7 @@ import com.badlogic.gdx.physics.box2d.joints.MotorJoint;
 import com.badlogic.gdx.physics.box2d.joints.RevoluteJoint;
 import com.badlogic.gdx.physics.box2d.joints.RevoluteJointDef;
 import com.mygdx.game.Entities.Player;
+import com.mygdx.game.Entities.PlayerState;
 
 import static com.mygdx.game.B2dModel.*;
 import static com.mygdx.game.GlobalVariables.*;
@@ -24,7 +25,7 @@ public class B2dModel {
 
     public static int numFootContacts = 0; //HANDLES THE FOOT - GROUND COLLISION
     public static int remainingDoubleJump = 1; //HANDLES THE DOUBLE JUMP COUNT
-    public int m_jumpTimeout; //TO MAKE SURE THAT YOU CANT JUMP IMMEDIATELY AS THE remainingJumpSteps IS STILL A NONZERO VALUE
+    public static int m_jumpTimeout; //TO MAKE SURE THAT YOU CANT JUMP IMMEDIATELY AS THE remainingJumpSteps IS STILL A NONZERO VALUE
     //------------------------------------------------------------------------//
     /**
      * This class will handle all BOX2D handling for:
@@ -42,7 +43,7 @@ public class B2dModel {
 
         //TEST MAP
         createFloor();
-        createWall();
+        //createWall();
     }
 
     // Physics logic goes here
@@ -53,30 +54,80 @@ public class B2dModel {
     }
 
     private void updatePlayerMovement(){
-        //player.currentVelocity = playerBody.getLinearVelocity();
-        //System.out.println(Math.floor(playerBody.getLinearVelocity().x) + "||" + Math.floor(playerBody.getLinearVelocity().y));
-        //VELOCITY IS SOMEHOW OSCILATING DUE TO THE WHEEL
+        //VELOCITY IS SOMEHOW OSCILLATING DUE TO THE WHEEL
         //THIS IS TO AVOID UNCERTAINTIES
         float velocityX = (float) Math.floor(playerBody.getLinearVelocity().x);
         float velocityY = playerBody.getLinearVelocity().y;
-        boolean isOscilatingX = (velocityX <= 1 && velocityX > 0) || (velocityX >= -1 && velocityX < 0);
-        boolean isOscilatingY = (velocityY <= 5 && velocityY > 0) || (velocityY >= -5 && velocityY < 0);
+        boolean isOscillatingX = (velocityX <= 1 && velocityX > 0) || (velocityX >= -1 && velocityX < 0);
+        boolean isOscillatingY = (velocityY <= 5 && velocityY > 0) || (velocityY >= -5 && velocityY < 0);
 
-        player.currentVelocity.y = isOscilatingY ? 0 : velocityY;
-        player.currentVelocity.set(isOscilatingX ? 0 : velocityX, isOscilatingY ? 0 : velocityY);
+        player.currentVelocity.y = isOscillatingY ? 0 : velocityY;
+        player.currentVelocity.set(isOscillatingX ? 0 : velocityX, isOscillatingY ? 0 : velocityY);
 
+        stateMovementResolution();
+    }
+
+    public void stateMovementResolution(){
+        //JUMPING RESOLUTION
         m_jumpTimeout--;
 
+        //THIS IS TO MAKE SURE THE RISE IS FINISHED
+        if(remainingJumpSteps > 0 && !player.playerState.currentState.equals(PlayerState.JUMPING)) {
+            if(playerBody.getLinearVelocity().y < 0)playerBody.setLinearVelocity(playerBody.getLinearVelocity().x,0);
+            player.playerState.previousState = player.playerState.currentState;
+            player.playerState.currentState = PlayerState.RISING;
+        }
+
+        switch (player.playerState.currentState){
+            case 'J' : {
+                remainingJumpSteps = 6;
+                if(B2dModel.numFootContacts <= 0) B2dModel.remainingDoubleJump--;
+                m_jumpTimeout = 15;
+                break;
+            }
+            case 'V' : {
+                if(remainingJumpSteps > 0){
+                    playerBody.applyForce(new Vector2(0, PLAYER_JUMP_FORCE), playerBody.getWorldCenter(), true);
+                    remainingJumpSteps--;
+                }
+            }
+        }
+
+
+        //GLIDING RESOLUTION
+        if(player.playerState.subCharacterState.equals(PlayerState.GLIDING) && player.playerState.isFacingRight) playerBody.setLinearVelocity(new Vector2(PLAYER_MOVEMENT_VELOCITY, playerBody.getLinearVelocity().y));
+        if(player.playerState.subCharacterState.equals(PlayerState.GLIDING) && !player.playerState.isFacingRight) playerBody.setLinearVelocity(new Vector2(-PLAYER_MOVEMENT_VELOCITY, playerBody.getLinearVelocity().y));
+
+        //RUN RESOLUTION
+        playerRevoluteJoint.setMotorSpeed(0);
+        if(player.playerState.currentState.equals(PlayerState.RUNNING) && player.playerState.isFacingRight) playerRevoluteJoint.setMotorSpeed(-PLAYER_MOVEMENT_VELOCITY);
+        if(player.playerState.currentState.equals(PlayerState.RUNNING) && !player.playerState.isFacingRight) playerRevoluteJoint.setMotorSpeed(PLAYER_MOVEMENT_VELOCITY);
+    }
+    public void oldMovementResolution(){
+        /*
+        if(b2dModel.m_jumpTimeout > 0) break;
+        if(B2dModel.numFootContacts > 0 || B2dModel.remainingDoubleJump > 0) {
+            b2dModel.remainingJumpSteps = 6;
+            if(B2dModel.numFootContacts <= 0) B2dModel.remainingDoubleJump--;
+        }
+        b2dModel.m_jumpTimeout = 15;
+        */
+
+        //JUMP RESOLUTION
+        m_jumpTimeout--;
         if(remainingJumpSteps > 0){
             playerBody.applyForce(new Vector2(0, PLAYER_JUMP_FORCE), playerBody.getWorldCenter(), true);
             remainingJumpSteps--;
         }
+
+        ///RUN RESOLUTION
         playerRevoluteJoint.setMotorSpeed(0);
         if(held_D && playerBody.getLinearVelocity().x <= PLAYER_MOVEMENT_VELOCITY && numFootContacts <= 0) playerBody.setLinearVelocity(new Vector2(PLAYER_MOVEMENT_VELOCITY, playerBody.getLinearVelocity().y));
         if(held_A && playerBody.getLinearVelocity().x >= -PLAYER_MOVEMENT_VELOCITY && numFootContacts <= 0) playerBody.setLinearVelocity(new Vector2(-PLAYER_MOVEMENT_VELOCITY, playerBody.getLinearVelocity().y));
 
         if(held_D && numFootContacts > 0) playerRevoluteJoint.setMotorSpeed(-PLAYER_MOVEMENT_VELOCITY);
         if(held_A && numFootContacts > 0) playerRevoluteJoint.setMotorSpeed(PLAYER_MOVEMENT_VELOCITY);
+
 
         if(isPlayerBoosting){
             Vector2 velocity = playerBody.getLinearVelocity();
@@ -130,7 +181,6 @@ public class B2dModel {
 
         shape.dispose();
         s.dispose();
-
     }
 
     public void setRayCastPoints(){
@@ -172,7 +222,7 @@ public class B2dModel {
 
         PolygonShape shape = new PolygonShape();
 
-        shape.setAsBox(1, 50, new Vector2(0,0), (float) Math.toRadians(45));
+        shape.setAsBox(1, 50, new Vector2(0,0), (float) Math.toRadians(89));
         bodys.createFixture(shape, 0.0f);
         shape.dispose();
     }

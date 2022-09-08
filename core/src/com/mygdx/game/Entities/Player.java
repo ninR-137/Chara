@@ -18,11 +18,10 @@ public class Player {
     public float positionX, positionY;
     public Vector2 currentVelocity = new Vector2();
     public PlayerState playerState = new PlayerState();
-    private final Util util = new Util();
-    private final Util util2 = new Util();
-    private Sprite idleImage, runningImage, risingImage, fallingImage, crashingImage, crashSlideImage;
-    private Sprite idleFlippedImage, runningFlippedImage, risingFlippedImage,
-            fallingFlippedImage, crashingFlippedImage, crashFlippedSlideImage;
+    private final Util jumpTimer = new Util(), crashTimer = new Util(), rollingTimer = new Util();
+    private final Sprite idleImage, runningImage, risingImage, fallingImage, crashingImage, crashSlideImage, jumpImage, rollingImage;
+    private final Sprite idleFlippedImage, runningFlippedImage, risingFlippedImage,
+            fallingFlippedImage, crashingFlippedImage, crashFlippedSlideImage, jumpFlippedImage, flippedRollingImage;
 
     public Player(float positionX, float positionY) {
         this.positionX = positionX;
@@ -35,6 +34,8 @@ public class Player {
         fallingImage = new Sprite(new Texture("assets/Charas/FallingModel.png"));
         crashingImage = new Sprite(new Texture("assets/Charas/CrashModel.png"));
         crashSlideImage = new Sprite(new Texture("assets/Charas/CrashSlideModel.png"));
+        jumpImage = new Sprite(new Texture("assets/Charas/JumpModel.png"));
+        rollingImage = new Sprite(new Texture("assets/Charas/RollingModel.png"));
 
         //Flipped Textures
         idleFlippedImage = new Sprite(new Texture("assets/Charas/IdleModel.png"));
@@ -49,10 +50,14 @@ public class Player {
         crashingFlippedImage.flip(true, false);
         crashFlippedSlideImage = new Sprite(new Texture("assets/Charas/CrashSlideModel.png"));
         crashFlippedSlideImage.flip(true, false);
+        jumpFlippedImage = new Sprite(new Texture("assets/Charas/JumpModel.png"));
+        jumpFlippedImage.flip(true, false);
+        flippedRollingImage = new Sprite(new Texture("assets/Charas/RollingModel.png"));
+        flippedRollingImage.flip(true, false);
     }
 
     public void render(Batch batch){
-        switch (playerState.getPlayerState()) {
+        switch (playerState.currentState) {
             case 'I': {
                 batch.draw(playerState.isFacingRight ? idleImage : idleFlippedImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
                 break;
@@ -61,7 +66,11 @@ public class Player {
                 batch.draw(playerState.isFacingRight ? runningImage : runningFlippedImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
                 break;
             }
-            case  'V' : {
+            case 'J' : {
+                batch.draw(playerState.isFacingRight ? jumpImage : jumpFlippedImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
+                break;
+            }
+            case 'V' : {
                 batch.draw(playerState.isFacingRight ? risingImage : risingFlippedImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
                 break;
             }
@@ -77,53 +86,103 @@ public class Player {
                 batch.draw(playerState.isFacingRight ? crashSlideImage : crashFlippedSlideImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
                 break;
             }
+            case 'P' : {
+                batch.draw(playerState.isFacingRight ? rollingImage : flippedRollingImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
+                break;
+            }
             default: {
 
             }
         }
     }
-    public void update(){
-        updateStateDueVelocity();
-    }
-    private void updateStateDueVelocity(){
-        playerState.isFacingRight = currentVelocity.x >= 0;
-        Character prevState = playerState.stateStack.pop();
-        if(!playerState.getPlayerState().equals(PlayerState.CRASH)) util.resetTime();
-        if(!playerState.getPlayerState().equals(PlayerState.CRASH_SLIDE)) util2.resetTime();
 
-        if(B2dModel.numFootContacts <= 0){
-            playerState.setPlayerState(currentVelocity.y > 0 ? PlayerState.RISING : PlayerState.FALLING);
-            playerState.stateStack.push(playerState.getPlayerState());
+    private boolean transitionMade = false;
+    public void update(){
+        transitionMade = false;
+        updateJumpToRiseTransition(0.2f);
+        if(!transitionMade)updateFallToCrashTransition(1f, 1.5f);
+    }
+
+    public void updateJumpToRiseTransition(float t){
+        if(playerState.currentState.equals(PlayerState.JUMPING)){
+            jumpTimer.countSeconds();
+            if(jumpTimer.elapsedTimeInSecond >= t){
+                jumpTimer.resetTime();
+                transitionState(PlayerState.RISING);
+            }
+            return;
+        }
+        jumpTimer.resetTime();
+
+        if(playerState.currentState.equals(PlayerState.RISING) && B2dModel.numFootContacts > 0){
+            Character state = Math.abs(currentVelocity.x) > 0 ? PlayerState.ROLLING: PlayerState.CRASH;
+            transitionState(state);
+        }
+    }
+
+    public void updateFallToCrashTransition(float t, float t2){
+        if(currentVelocity.y < 0) {
+            Character crashState = Math.abs(currentVelocity.x) > 0 ? PlayerState.CRASH_SLIDE : PlayerState.CRASH;
+            Character state = B2dModel.numFootContacts <= 0 ? PlayerState.FALLING : crashState;
+            transitionState(state);
             return;
         }
 
-        playerState.setPlayerState(Math.abs(currentVelocity.x) > 0 ? returnNonZeroVelocityState(prevState, playerState.getPlayerState()) : returnZeroVelocityState(prevState, playerState.getPlayerState()));
-        playerState.stateStack.push(playerState.getPlayerState());
+
+        if(playerState.currentState.equals(PlayerState.FALLING) && currentVelocity.y == 0 && B2dModel.numFootContacts > 0){
+            Character state = Math.abs(currentVelocity.x) > 0 ? PlayerState.CRASH_SLIDE : PlayerState.CRASH;
+            transitionState(state);
+            return;
+        }
+
+
+        if(playerState.currentState.equals(PlayerState.CRASH_SLIDE) || playerState.currentState.equals(PlayerState.CRASH)){
+            crashTimer.countSeconds();
+            float timer = t;
+            if(playerState.currentState.equals(PlayerState.CRASH)) timer = 2;
+            if(crashTimer.elapsedTimeInSecond >= timer){
+                crashTimer.resetTime();
+                Character state = Math.abs(currentVelocity.x) > 0 ? PlayerState.ROLLING : PlayerState.IDLE;
+                transitionState(state);
+            }
+            return;
+        }
+        crashTimer.resetTime();
+
+        if(playerState.currentState.equals(PlayerState.ROLLING)){
+            rollingTimer.countSeconds();
+            if(rollingTimer.elapsedTimeInSecond >= t2){
+                rollingTimer.resetTime();
+                Character state = held_A || held_D ? PlayerState.RUNNING : PlayerState.IDLE;
+                transitionState(state);
+            }
+            return;
+        }
+        rollingTimer.resetTime();
     }
 
-    private Character returnNonZeroVelocityState(Character prevState, Character currentState){
-        if(prevState.equals(PlayerState.FALLING)) return PlayerState.CRASH_SLIDE;
-        if(currentState.equals(PlayerState.CRASH_SLIDE)) {
-            util2.countSeconds();
-            if(util2.elapsedTimeInSecond >= 0.5f){
-                util2.resetTime();
-                return Math.abs(currentVelocity.x) >= 15 ? PlayerState.RUNNING : PlayerState.CRASH_SLIDE;
-            }
-            return Math.abs(currentVelocity.x) < 2 ? PlayerState.IDLE : PlayerState.CRASH_SLIDE;
-        }
-        return PlayerState.RUNNING;
+    public void transitionState(Character state){
+        playerState.previousState = playerState.currentState;
+        playerState.currentState = state;
+        transitionMade = true;
     }
-    private Character returnZeroVelocityState(Character prevState, Character currentState) {
-        if(prevState.equals(PlayerState.FALLING)) return PlayerState.CRASH;
-        if(currentState.equals(PlayerState.CRASH)) {
-            util.countSeconds();
-            if(util.elapsedTimeInSecond >= 0.5f){
-                util.resetTime();
-                return PlayerState.IDLE;
-            }
-            return PlayerState.CRASH;
-        }
-        return PlayerState.IDLE;
+
+
+
+    public void dispose(){
+        idleImage.getTexture().dispose();
+        runningImage.getTexture().dispose();
+        risingImage.getTexture().dispose();
+        fallingImage.getTexture().dispose();
+        crashingImage.getTexture().dispose();
+        crashSlideImage.getTexture().dispose();
+
+        idleFlippedImage.getTexture().dispose();
+        runningFlippedImage.getTexture().dispose();
+        risingFlippedImage.getTexture().dispose();
+        fallingFlippedImage.getTexture().dispose();
+        crashingFlippedImage.getTexture().dispose();
+        crashFlippedSlideImage.getTexture().dispose();
     }
 }
 
