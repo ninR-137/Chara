@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.9" tiledversion="1.9.1" orientation="orthogonal" renderorder="right-down" width="60" height="60" tilewidth="2" tileheight="2" infinite="0" nextlayerid="6" nextobjectid="4">
+ <objectgroup id="4" name="Object Layer 1">
+  <object id="2" x="0" y="41.375">
+   <polygon points="0,0 0.0222222,-14.375 31,-14.3438 30.9688,-2.84375 22.9565,6.66848 17,10.3641 16.9565,32.6685 36.875,37.8125 36.9688,65.625 81,65.6472 81.0222,43.7139 90.0222,38.6694 90.0222,22.6472 104,15.7188 104,6.625 71,-2.1875 56.1818,-12.1932 56.0156,-12.3906 120.011,-12.375 120,78.625 0,78.625 0,58.9688 0,39.3125 0,19.6563"/>
+  </object>
+ </objectgroup>
+ <objectgroup id="5" name="Object Layer 2">
+  <object id="3" name="Spawn" x="14.8523" y="22.9545" width="1" height="1"/>
+ </objectgroup>
+ <imagelayer id="2" name="Ground">
+  <image source="Ground.png" width="120" height="120"/>
+ </imagelayer>
+</map>

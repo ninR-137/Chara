@@ -25,9 +25,10 @@ public class MainGame extends ApplicationAdapter {
 	@Override
 	public void create () {
 		img = new Texture("assets/badlogic.jpg");
-		player = new Player(0,0);
+
+		player = new Player();
 		b2dModel = new B2dModel(player);
-		keyboardController = new KeyboardController(b2dModel);
+		keyboardController = new KeyboardController();
 
 		Gdx.input.setInputProcessor(keyboardController);
 	}
@@ -48,23 +49,17 @@ public class MainGame extends ApplicationAdapter {
 		mainSpriteBatch.setProjectionMatrix(mainCamera.combined);
 
 		mainSpriteBatch.begin();
+		//b2dModel.renderMap(mainSpriteBatch);
 		player.render(mainSpriteBatch);
-		//mainSpriteBatch.draw(img, player.positionX - PlayerWidth/2, player.positionY - PlayerHeight, PlayerWidth, PlayerHeight * 1.5f);
 		mainSpriteBatch.end();
 
-		/*
-		sr.setProjectionMatrix(mainCamera.combined);
-		sr.begin(ShapeRenderer.ShapeType.Line);
-		sr.line(p1,p2);
-		sr.line(collision, normal);
-		sr.end();
-		*/
 
 		sr.setProjectionMatrix(mainCamera.combined);
 		sr.begin(ShapeRenderer.ShapeType.Line);
 		sr.line(rightLegP1, rightLegP2);
 		sr.line(leftLegP1, leftLegP2);
 		sr.end();
+
 	}
 
 	public void update(float dt){
@@ -73,39 +68,42 @@ public class MainGame extends ApplicationAdapter {
 		b2dModel.logicStep(dt);
 		player.positionX = b2dModel.playerBody.getPosition().x;
 		player.positionY = b2dModel.playerBody.getPosition().y;
-		rightLegAngleInDegrees = 0;
-		leftLegAngleInDegrees = 0;
-		b2dModel.setRayCastPoints();
+		playerRaytraceSensorUpdates();
 		player.update();
 	}
 
 
-	/*
-	private void calculateAngleFromNorm(){
-		Vector2 v = new Vector2(p2.x - p1.x, p2.y - p1.y);
-		Vector2 vnorm = v.nor();
-		double angle = Math.acos(vnorm.dot(normal));
-		System.out.println(Math.toDegrees(angle));
+	private void playerRaytraceSensorUpdates(){
+		rightSideAngleInDegrees = 0;
+		leftSideAngleInDegrees = 0;
+		leftSideValue --;
+		rightSideValue --;
+		b2dModel.setRayCastPoints();
 	}
-
-	 */
 
 
 	/**
 	 * Under Tests still
 	 * Convey motion through camera movement
 	 */
+
 	public void updateCameraPosition(){
 		//a+(b-a) * lerp
 		//a = camera position
 		//b = target
 
+		//TODO: CREATE LINEAR INTERPOLATION FOR adjustmentX
 		Vector3 position = mainCamera.position;
-		float adjustmentX = 0;
-		if(player.currentVelocity.x != 0)adjustmentX = player.playerState.isFacingRight ? 10: -10;
-		float lerp = Math.abs(player.currentVelocity.len()) > 0 ? 0.05f : 0.015f;
+		float adjustmentX;
+		//float lerp = Math.abs(player.currentVelocity.len()) > 0 ? 0.05f : 0.015f;
+		float lerp = 0.25f;
 
-		position.x = mainCamera.position.x + (player.positionX - (mainCamera.position.x - adjustmentX)) * lerp;
+		if(Math.abs(player.currentVelocity.x) > 0) {
+			adjustmentX = player.playerState.isFacingRight ? 10 : -10;
+		} else {
+			adjustmentX = player.playerState.isFacingRight ? 8 : -8;
+		}
+		position.x = mainCamera.position.x + (player.positionX - (mainCamera.position.x)) * lerp;
 		position.y = mainCamera.position.y + (player.positionY - mainCamera.position.y) * lerp;
 		mainCamera.position.set(position);
 		mainCamera.update();
@@ -117,5 +115,6 @@ public class MainGame extends ApplicationAdapter {
 		GlobalVariables.dispose();
 		sr.dispose();
 		player.dispose();
+		b2dModel.dispose();
 	}
 }

@@ -25,20 +25,21 @@ public class GlobalVariables {
      * in the render() method
      */
 
-    public static int VIEWPORT_WIDTH = 25;
-    public static  int VIEWPORT_HEIGHT = 25;
+    public static int VIEWPORT_WIDTH = 45;
+    public static  int VIEWPORT_HEIGHT =45;
     public static final SpriteBatch mainSpriteBatch = new SpriteBatch();
 
     //SOMEHOW THIS POSTED NO PROBLEMS NO WIERD PPM CONVERSIONS IS NEEDED IF I JUST ASSUME MY MAIN CAMERA TO BE IN METERS
     //RATHER THAN PIXELS
     public static final OrthographicCamera mainCamera = new OrthographicCamera(VIEWPORT_WIDTH,VIEWPORT_HEIGHT); //This measurement is always in world units
     public static final ExtendViewport extendMainViewPort = new ExtendViewport(mainCamera.viewportWidth, mainCamera.viewportHeight, mainCamera);
-    public static final float WORLD_GRAVITY = -20f;
+    public static final float WORLD_GRAVITY = -40f;
 
-    public static final float PLAYER_MOVEMENT_VELOCITY = 17f;
-    public static final float PLAYER_JUMP_FORCE = 2000;
+    public static final float PLAYER_MOVEMENT_VELOCITY = 25f;
+    public static final int PLAYER_WHEEL_TORQUE = 1000;
+    public static final float PLAYER_JUMP_FORCE = 3000;
 
-    public static final String PlayerUserData = "Player", FootUserData = "Foot";
+    public static final String PlayerUserData = "Player", FootUserData = "Foot", WallUserData = "Wall";
     public static final float PlayerWidth = 2, PlayerHeight = 2f;
     public static final Box2DDebugRenderer b2dDebugRenderer = new Box2DDebugRenderer();
 
@@ -53,17 +54,24 @@ public class GlobalVariables {
     //RIGHT LEG
     public static ShapeRenderer sr = new ShapeRenderer();
     public static Vector2 rightLegP1 = new Vector2(), rightLegP2 = new Vector2();
-    public static float rightLegAngleInDegrees;
+    public static float rightSideAngleInDegrees;
     public static Vector2 leftLegP1 = new Vector2(), leftLegP2 = new Vector2();
-    public static float leftLegAngleInDegrees;
+    public static float leftSideAngleInDegrees;
+    public static int leftSideValue = -1, rightSideValue = -1;
+
 
     public static RayCastCallback rightLegRayCastCallback = new RayCastCallback() {
         @Override
         public float reportRayFixture(Fixture fixture, Vector2 point, Vector2 normal, float fraction) {
             Vector2 v = new Vector2(rightLegP2.x - rightLegP1.x, rightLegP2.y - rightLegP1.y);
             Vector2 vnorm = v.nor();
-            rightLegAngleInDegrees = (float) Math.toDegrees(Math.acos(vnorm.dot(normal))) - 90;
-            //System.out.println(Math.round(rightLegAngleInDegrees));
+            rightSideAngleInDegrees = (float) Math.toDegrees(Math.acos(vnorm.dot(normal))) - 90;
+            if(fixture.getUserData() != null && fixture.getUserData().equals(WallUserData)){
+                if(Math.round(rightSideAngleInDegrees) >= 80){
+                    if(held_D && leftSideValue < 0 && !held_A) rightSideValue = 16;
+                    if(held_A) rightSideValue = -100;
+                }
+            }
             return 0;
         }
     };
@@ -73,8 +81,14 @@ public class GlobalVariables {
         public float reportRayFixture(Fixture fixture, Vector2 point, Vector2 normal, float fraction) {
             Vector2 v = new Vector2(leftLegP2.x - leftLegP1.x, leftLegP2.y - leftLegP1.y);
             Vector2 vnorm = v.nor();
-            leftLegAngleInDegrees = (float) Math.toDegrees(Math.acos(vnorm.dot(normal))) - 90;
-            //System.out.println(Math.round(leftLegAngleInDegrees));
+            leftSideAngleInDegrees = (float) Math.toDegrees(Math.acos(vnorm.dot(normal))) - 90;
+            if(fixture.getUserData() != null && fixture.getUserData().equals(WallUserData)){
+                if(Math.round(leftSideAngleInDegrees) >= 80){
+                    if(held_A && rightSideValue < 0 && !held_D) leftSideValue = 16;
+                    if(held_D) leftSideValue = -100;
+                }
+            }
+
             return 0;
         }
     };
@@ -83,6 +97,10 @@ public class GlobalVariables {
     //NOT SO CONSTANT VARIABLES
     //PLAYER CONTROLS
     public static boolean held_W = false, held_A = false, held_S = false, held_D = false;
+    public static int remainingJumpSteps; //HANDLES THE JUMPING FORCE (INCREMENTS THE FORCE INTO THE DESIRED STEP INTERVAL)
+    public static int numFootContacts = 0; //HANDLES THE FOOT - GROUND COLLISION
+    public static int remainingDoubleJump = 1; //HANDLES THE DOUBLE JUMP COUNT
+    public static int m_jumpTimeout; //TO MAKE SURE THAT YOU CANT JUMP IMMEDIATELY AS THE remainingJumpSteps IS STILL A NONZERO VALUE
     public static void dispose(){
         mainSpriteBatch.dispose();
     }

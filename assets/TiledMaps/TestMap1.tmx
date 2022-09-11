@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.9" tiledversion="1.9.1" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="2" tileheight="2" infinite="0" nextlayerid="5" nextobjectid="5">
+ <objectgroup id="2" name="Object Layer 1">
+  <object id="4" x="0" y="58">
+   <polygon points="0,0 0,-52 8,-52 12,-52 12,-42 20,-36 20,-26 8,-26 8,-4 20,-4 30,-10 46,-10 50,-6 50,-24 54,-24 54,-32 56,-38 34,-48 26,-54 60,-54 60,2 0,2"/>
+  </object>
+ </objectgroup>
+ <objectgroup id="4" name="Object Layer 2">
+  <object id="3" name="Spawn" x="7" y="1.40625" width="1" height="1"/>
+ </objectgroup>
+</map>
