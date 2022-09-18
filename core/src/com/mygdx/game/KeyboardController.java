@@ -3,12 +3,8 @@ package com.mygdx.game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
-import com.badlogic.gdx.math.Vector;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.physics.box2d.Fixture;
-import com.badlogic.gdx.physics.box2d.FixtureDef;
-import com.mygdx.game.Entities.PlayerState;
 
 import static com.mygdx.game.GlobalVariables.*;
 
@@ -33,11 +29,9 @@ public class KeyboardController implements InputProcessor{
                 held_S = true;
                 break;
             }
-            /*
             case Input.Keys.SHIFT_LEFT: {
-                b2dModel.isPlayerBoosting = true;
+                break;
             }
-            */
         }
         return false;
     }
@@ -61,6 +55,9 @@ public class KeyboardController implements InputProcessor{
                 held_S = false;
                 break;
             }
+            case Input.Keys.SHIFT_LEFT: {
+                break;
+            }
         }
         return false;
     }
@@ -70,32 +67,50 @@ public class KeyboardController implements InputProcessor{
         return false;
     }
 
+
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-        return false;
+        //------------ATTACK RAY CAST TEST-----------------------//
+        Vector3 tmp = new Vector3();
+        tmp.set(screenX, screenY, 0);
+        mainCamera.unproject(tmp);
+        if(Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
+            attackEndPoint.set(tmp.x/PPM, tmp.y/PPM);
+        }
+        //NORMALIZE
+        float xdirection = attackEndPoint.x - playerPoint.x;
+        float ydirection = attackEndPoint.y - playerPoint.y;
+        normalizedAttackDirection.set(xdirection , ydirection);
+        normalizedAttackDirection.nor();
+
+        Vector2 temp = new Vector2();
+        temp.set(normalizedAttackDirection.x, normalizedAttackDirection.y);
+
+        normalizedAttackDirection.scl(ATTACK_RANGE);
+        normalizedAttackDirection.x += playerPoint.x;
+        normalizedAttackDirection.y += playerPoint.y;
+
+        temp.nor();
+        playerAngleBasis.set(0, 1/PPM);
+        playerAngleBasis.nor();
+        float angle = (float) Math.toDegrees(Math.acos(temp.dot(playerAngleBasis)));
+        attackAngle = (int) Math.floor(Math.round(angle));
+        //System.out.println(attackAngle);
+
+        mouse_leftClicked = true;
+
+        return true;
     }
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+        mouse_leftClicked = false;
         return false;
     }
 
-    //private Vector3 tmp = new Vector3();
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
-        /*
-        tmp.set(screenX, screenY, 0);
-        mainCamera.unproject(tmp);
-        if(Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
-            p2.set(tmp.x, tmp.y);
-            b2dModel.world.rayCast( rayCastCallback, p1, p2);
-        }
-        else if(Gdx.input.isButtonPressed(Input.Buttons.RIGHT)){
-            p1.set(tmp.x, tmp.y);
-        }
-        return true;
-        */
         return true;
     }
 

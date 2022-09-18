@@ -3,13 +3,17 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "TiledMaps/TestMap1.tmx",
+    "activeFile": "",
     "expandedProjectPaths": [
-        "TiledMaps",
-        "."
+        ".",
+        "TiledMaps"
     ],
     "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
+        "/home/russel/Downloads/Test.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
         "TiledMaps/Test/Test2.tmx": {
             "expandedObjectLayers": [
                 4,
@@ -39,18 +43,19 @@
             }
         }
     },
+    "last.imagePath": "/home/russel/Downloads",
     "map.height": 60,
     "map.lastUsedFormat": "tmx",
-    "map.tileHeight": 2,
-    "map.tileWidth": 2,
+    "map.tileHeight": 32,
+    "map.tileWidth": 32,
     "map.width": 60,
     "openFiles": [
-        "TiledMaps/TestMap1.tmx",
-        "TiledMaps/TestMap1.tmx"
     ],
     "project": "TestMap1.tiled-project",
     "recentFiles": [
-        "TiledMaps/Test/Test2.tmx",
-        "TiledMaps/TestMap1.tmx"
-    ]
+        "/home/russel/Downloads/Test.tsx",
+        "TiledMaps/TestMap1.tmx",
+        "TiledMaps/Test/Test2.tmx"
+    ],
+    "tileset.lastUsedFormat": "tsx"
 }

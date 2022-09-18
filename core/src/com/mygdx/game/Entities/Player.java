@@ -2,304 +2,439 @@ package com.mygdx.game.Entities;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.physics.box2d.*;
-import com.mygdx.game.B2dModel;
-import com.mygdx.game.GlobalVariables;
 import com.mygdx.game.Util;
-import org.w3c.dom.Text;
-import sun.awt.X11.XSystemTrayPeer;
 
 import static com.mygdx.game.GlobalVariables.*;
-import static jdk.vm.ci.meta.JavaKind.Char;
 
 public class Player {
 
     public float positionX, positionY;
     public Vector2 currentVelocity = new Vector2();
-    public PlayerState playerState = new PlayerState();
-    private final Util jumpTimer = new Util(), crashTimer = new Util(),
-            rollingTimer = new Util(), safeTimer = new Util();
-    private final Sprite idleImage, runningImage, risingImage, fallingImage,
-            crashingImage, crashSlideImage, jumpImage, rollingImage,
-            wallClingImage , wallClimbImage, wallClimbDownImage;
-    private final Sprite idleFlippedImage, runningFlippedImage, risingFlippedImage,
-            fallingFlippedImage, crashingFlippedImage, crashFlippedSlideImage, jumpFlippedImage,
-            flippedRollingImage, flippedWallClimbImage, flippedWallClingImage, flippedWallClimbDownImage;
 
-    public Player() {
-        //TODO : TEXTURE MANAGEMENT
-        //TEST TEXTURES
-        idleImage = new Sprite(new Texture("assets/Charas/IdleModel.png"));
-        runningImage = new Sprite(new Texture("assets/Charas/RunningModel.png"));
-        risingImage = new Sprite(new Texture("assets/Charas/RisingModel.png"));
-        fallingImage = new Sprite(new Texture("assets/Charas/FallingModel.png"));
-        crashingImage = new Sprite(new Texture("assets/Charas/CrashModel.png"));
-        crashSlideImage = new Sprite(new Texture("assets/Charas/CrashSlideModel.png"));
-        jumpImage = new Sprite(new Texture("assets/Charas/JumpModel.png"));
-        rollingImage = new Sprite(new Texture("assets/Charas/RollingModel.png"));
-        wallClingImage = new Sprite(new Texture("assets/Charas/WallClingModel.png"));
-        wallClimbImage = new Sprite(new Texture("assets/Charas/WallClimbModel.png"));
-        wallClimbDownImage = new Sprite(new Texture("assets/Charas/WallClimbDownModel.png"));
+    private final Util safeTimer = new Util(), attackCoolDown = new Util();
+    private PlayerAnimationHandler playerAnimationHandler;
 
-        //Flipped Textures
-        idleFlippedImage = new Sprite(new Texture("assets/Charas/IdleModel.png"));
-        idleFlippedImage.flip(true, false);
-        runningFlippedImage = new Sprite(new Texture("assets/Charas/RunningModel.png"));
-        runningFlippedImage.flip(true, false);
-        risingFlippedImage = new Sprite(new Sprite(new Texture("assets/Charas/RisingModel.png")));
-        risingFlippedImage.flip(true, false);
-        fallingFlippedImage = new Sprite(new Texture("assets/Charas/FallingModel.png"));
-        fallingFlippedImage.flip(true,false);
-        crashingFlippedImage = new Sprite(new Texture("assets/Charas/CrashModel.png"));
-        crashingFlippedImage.flip(true, false);
-        crashFlippedSlideImage = new Sprite(new Texture("assets/Charas/CrashSlideModel.png"));
-        crashFlippedSlideImage.flip(true, false);
-        jumpFlippedImage = new Sprite(new Texture("assets/Charas/JumpModel.png"));
-        jumpFlippedImage.flip(true, false);
-        flippedRollingImage = new Sprite(new Texture("assets/Charas/RollingModel.png"));
-        flippedRollingImage.flip(true, false);
-        flippedWallClingImage = new Sprite(new Texture("assets/Charas/WallClingModel.png"));
-        flippedWallClingImage.flip(true, false);
-        flippedWallClimbImage = new Sprite(new Texture("assets/Charas/WallClimbModel.png"));
-        flippedWallClimbImage.flip(true, false);
-        flippedWallClimbDownImage = new Sprite(new Texture("assets/Charas/WallClimbDownModel.png"));
-        flippedWallClimbDownImage.flip(true, false);
+    public enum states {
+        IDLE, RUNNING, JUMPING,
+        RISING, FALLING, CRASH , CRASH_SLIDE , ROLLING, WALLCLING,
+        WALLCLIMB, WALLCLIMBDOWN, GLIDING, NONE, LAND, DRAWING, ATTACKING;
     }
 
-    public void render(Batch batch){
-        switch (playerState.currentState) {
-            case 'I': {
-                batch.draw(playerState.isFacingRight ? idleImage : idleFlippedImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-            case 'R' : {
-                batch.draw(playerState.isFacingRight ? runningImage : runningFlippedImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-            case 'J' : {
-                batch.draw(playerState.isFacingRight ? jumpImage : jumpFlippedImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-            case 'V' : {
-                batch.draw(playerState.isFacingRight ? risingImage : risingFlippedImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-            case 'F' : {
-                batch.draw(playerState.isFacingRight ? fallingImage : fallingFlippedImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-            case 'C' : {
-                batch.draw(playerState.isFacingRight ? crashingImage : crashingFlippedImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-            case 'L' : {
-                batch.draw(playerState.isFacingRight ? crashSlideImage : crashFlippedSlideImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-            case 'P' : {
-                batch.draw(playerState.isFacingRight ? rollingImage : flippedRollingImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-            case 'W' : {
-                batch.draw(playerState.isFacingRight ? wallClingImage : flippedWallClingImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-            case 'Z' : {
-                batch.draw(playerState.isFacingRight ? wallClimbImage : flippedWallClimbImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-            case 'Q' : {
-                batch.draw(playerState.isFacingRight ? wallClimbDownImage : flippedWallClimbDownImage, positionX - PlayerWidth / 2, positionY - PlayerHeight, PlayerWidth, PlayerWidth * 1.5f);
-                break;
-            }
-        }
-    }
-
+    public states previousState = states.IDLE;
+    public states currentState = states.IDLE;
+    public states subCharacterState = states.NONE;
+    public boolean playerShouldJump = false;
+    public boolean isFacingRight = true;
     //BE VERY CAREFUL WHEN USING THIS
     private boolean transitionLock = false;
     private boolean isHorizontalInput = false;
     private boolean isVerticalInput = false;
-    //private int priorityStyle = 0;
+
+    public Player() {
+
+        //TEST ANIMATIONS
+        playerAnimationHandler = new PlayerAnimationHandler(this);
+    }
+
+    public void render(Batch batch){
+        playerAnimationHandler.render(batch);
+    }
     public void update(){
         miscUpdate();
         if(rightSideValue > 0 || leftSideValue > 0) {
-            transitionState(PlayerState.WALLCLING);
-            //SOME BUGS REGARDING TRANSITION LOCK DURING THE JUMPSTATE
-            if(playerState.currentState.equals(PlayerState.JUMPING)){
-                transitionLock = false;
-                transitionState(PlayerState.WALLCLING);
-            }
-            if(held_W) transitionState(PlayerState.WALLCLIMB);
-            if(held_S) transitionState(PlayerState.WALLCLIMBDOWN);
+            wallClingUpdate();
         } else {
-            if (!isHorizontalInput && !isVerticalInput) {
-                transitionState(PlayerState.IDLE);
-            }
+            if (!isHorizontalInput && !isVerticalInput) transitionState(states.IDLE);
             horizontalStateHandler();
             jumpInputHandler();
-            riseHandler(0.2f);
-            fallHandler(0.2f, 0.3f);
+            riseHandler();
+            fallHandler();
         }
+        attackUpdate();
     }
 
+    public void transitionState(states state){
+        if(transitionLock) return;
+        previousState = currentState;
+        currentState = state;
+    }
     public void miscUpdate(){
         isVerticalInput = numFootContacts == 0;
-        if(!playerState.currentState.equals(PlayerState.JUMPING)) jumpTimer.resetTime();
-        if(!playerState.currentState.equals(PlayerState.CRASH_SLIDE) && !playerState.currentState.equals(PlayerState.CRASH)) crashTimer.resetTime();
-        if(!playerState.currentState.equals(PlayerState.ROLLING)) rollingTimer.resetTime();
 
         //System.out.println(leftSideValue + "||" + rightSideValue);
-        if(Gdx.input.isKeyPressed(Input.Keys.W)) playerState.playerShouldJump = true;
-        if(Gdx.input.isKeyPressed(Input.Keys.A)) playerState.isFacingRight = false;
-        if(Gdx.input.isKeyPressed(Input.Keys.D)) playerState.isFacingRight = true;
+        if(Gdx.input.isKeyPressed(Input.Keys.W)) playerShouldJump = true;
+        if(Gdx.input.isKeyPressed(Input.Keys.A)) isFacingRight = false;
+        if(Gdx.input.isKeyPressed(Input.Keys.D)) isFacingRight = true;
 
-        //ON THE EXTREME CASE THAT OUR TRANSITION IS LOCKED AND THE TIMERS ARE NOT WORKING
+
         if(transitionLock) {
             safeTimer.countSeconds();
-            if (safeTimer.elapsedTimeInSecond >= 0.5f) {
-                //System.out.println("TIMER ERROR DETECTED TRANSITION LOCK DISABLED");
+            if (safeTimer.elapsedTimeInSecond >= 0.75f) {
                 safeTimer.resetTime();
                 transitionLock = false;
             }
         } else {
             safeTimer.resetTime();
         }
+
     }
 
+    public void attackUpdate(){
+        attackCoolDown.countSeconds();
+        if(mouse_leftClicked && attackCoolDown.elapsedTimeInSecond >= 0.5f) {
+            attackCoolDown.resetTime();
+            transitionState(states.DRAWING);
+            transitionLock = true;
+        }
+
+        if(currentState.equals(states.DRAWING)){
+            if(playerAnimationHandler.isDrawAnimFinished){
+                transitionLock = false;
+                transitionState(states.ATTACKING);
+                playerAnimationHandler.isDrawAnimFinished = false;
+                playerAnimationHandler.drawAnimTime = 0;
+                transitionLock = true;
+            }
+        }
+
+        if(currentState.equals(states.ATTACKING)){
+            if(playerAnimationHandler.isAttackAnimFinished){
+                transitionLock = false;
+                playerAnimationHandler.isAttackAnimFinished = false;
+                playerAnimationHandler.attackAnimtime = 0;
+            }
+        }
+    }
+    public void wallClingUpdate(){
+        transitionState(states.WALLCLING);
+        //SOME BUGS REGARDING TRANSITION LOCK DURING THE JUMPSTATE
+        if(currentState.equals(states.JUMPING)){
+            transitionLock = false;
+            transitionState(states.WALLCLING);
+        }
+        if(held_W) transitionState(states.WALLCLIMB);
+        if(held_S) transitionState(states.WALLCLIMBDOWN);
+    }
     private void horizontalStateHandler(){
         boolean isGrounded = numFootContacts > 0;
-        playerState.subCharacterState = PlayerState.NONE;
+        subCharacterState = states.NONE;
         if(held_D || held_A){
             isHorizontalInput = true;
             if(isGrounded) {
-                transitionState(PlayerState.RUNNING);
+                transitionState(states.RUNNING);
                 return;
             }
-            playerState.subCharacterState = PlayerState.GLIDING;
+            subCharacterState = states.GLIDING;
             return;
         }
         //IF THE EXECUTION REACHES HERE IT MEANS INPUT VALUES FOR DIRECTION IS NOT PASSED
         isHorizontalInput = false;
     }
     private void jumpInputHandler(){
-        if(!playerState.playerShouldJump || m_jumpTimeout > 0) return;
-        //THAT WAS AN ACCIDENT BUT I KINDA LIKE IT
+        if(!playerShouldJump || m_jumpTimeout > 0) return;
         if(numFootContacts > 0) {
-            transitionState(PlayerState.JUMPING);
+            transitionState(states.JUMPING);
             transitionLock = true;
         }
         isVerticalInput = true;
-        playerState.playerShouldJump = false;
+        playerShouldJump = false;
     }
-    private void riseHandler(float t){
-        // B2dModel.remainingJumpSteps > 0 is to make sure Rising State is finished
+    private void riseHandler(){
         if(remainingJumpSteps > 0) {
-            //What we want is to stay in jump state at a time t then transition to Rising State
-            if(playerState.currentState.equals(PlayerState.JUMPING) && numFootContacts > 0){
-                jumpTimer.countSeconds();
-                if(jumpTimer.elapsedTimeInSecond >= t){
-                    jumpTimer.resetTime();
+            if(currentState.equals(states.JUMPING) && numFootContacts > 0){
+                if(playerAnimationHandler.isJumAnimFinished){
                     transitionLock = false;
-                    transitionState(PlayerState.RISING);
+                    transitionState(states.RISING);
+                    playerAnimationHandler.jumpAnimElapsedTime = 0;
+                    playerAnimationHandler.isJumAnimFinished = false;
+                    return;
                 }
             }
-            else {
-                transitionState(PlayerState.RISING); //This is by default
-            }
+            transitionState(states.RISING);
         }
     }
-
-    //Falling and crashing states are dependent on velocity
-    //Unlike horizontal and jumping states where it is dependent on input
-    private void fallHandler(float t, float t2){
-        //This one is an exception
-        /*
-        if(held_S && numFootContacts <= 0){
-            playerState.subCharacterState = PlayerState.LAND;
-        }
-        */
-        //------------------------------------------------------------------//
-
+    private void fallHandler(){
         if(currentVelocity.y < 0 && numFootContacts <= 0) {
-            transitionState(PlayerState.FALLING);
+            transitionState(states.FALLING);
             return;
         }
-
         //CHECK IF CONDITIONS ARE FOR PLAYER CRASH
         if(numFootContacts > 0){
             //DUE TO OSCILLATING STATE CHANGES
-            if(playerState.previousState.equals(PlayerState.FALLING)){
-                //Character state = Math.abs(currentVelocity.x) > 0 ? PlayerState.CRASH_SLIDE : PlayerState.CRASH;
-                Character state;
-                state = PlayerState.CRASH;
-                boolean condition1 = currentVelocity.x - 5> 0 && playerState.isFacingRight;
-                //I DONT KNOW WHY BUT THERE IS A SLIGHT ERROR
-                boolean condition2 = currentVelocity.x + 5 < 0 && !playerState.isFacingRight; //THIS KINDA HANDLES IT BETTER?
-                //if(condition1 || condition2) state = PlayerState.CRASH_SLIDE;
+            if(previousState.equals(states.FALLING)){
+                states state = states.CRASH;
                 //WILL BE REMOVING CRASH SLIDE FOR NOW
                 transitionState(state);
-                //System.out.println("Changed state to crash || Locked Transition Changes");
                 transitionLock = true;
+                //System.out.println("TRANSITION IS NOW LOCKED");
                 return;
             }
         }
-
         //CRASH TIMER HANDLER
-        if(playerState.currentState.equals(PlayerState.CRASH_SLIDE) || playerState.currentState.equals(PlayerState.CRASH)){
-            crashTimer.countSeconds();
-            if(crashTimer.elapsedTimeInSecond >= t){
-                crashTimer.resetTime();
-                Character state = held_A||held_D ? PlayerState.ROLLING : PlayerState.IDLE;
-                //System.out.println("CHANGING STATE FROM CRASH TO : " + state + " || Unlocked Transition Changes");
+        if(currentState.equals(states.CRASH)){
+            if(playerAnimationHandler.isCrashAnimFinished){
+                states state = held_A||held_D ? states.ROLLING : states.IDLE;
                 transitionLock = false;
                 transitionState(state);
-                if(state.equals(PlayerState.ROLLING)){
+                playerAnimationHandler.crashAnimElapsedTime = 0;
+                playerAnimationHandler.isCrashAnimFinished = false;
+                if(state.equals(states.ROLLING)){
                     transitionLock = true;
-                    //System.out.println("ROLLING STATE || LOCKED Transition Changes");
                 }
             }
             return;
         }
-
-        if(playerState.currentState.equals(PlayerState.ROLLING)){
-            rollingTimer.countSeconds();
-            if(rollingTimer.elapsedTimeInSecond >= t2){
-                rollingTimer.resetTime();
-                Character state = held_A || held_D ? PlayerState.RUNNING : PlayerState.IDLE;
+        if(currentState.equals(states.ROLLING)){
+            if(playerAnimationHandler.isRollingAnimFinished){
+                states state = held_A || held_D ? states.RUNNING : states.IDLE;
                 transitionLock = false;
-                //System.out.println("CHANGING STATE FROM CRASH TO : " + state + " || Unlocked Transition Changes");
                 transitionState(state);
+                playerAnimationHandler.rollingAnimTime = 0;
+                playerAnimationHandler.isRollingAnimFinished = false;
             }
         }
 
-    }
-    public void transitionState(Character state){
-        if(transitionLock) return;
-        playerState.previousState = playerState.currentState;
-        playerState.currentState = state;
     }
 
 
 
     public void dispose(){
-        idleImage.getTexture().dispose();
-        runningImage.getTexture().dispose();
-        risingImage.getTexture().dispose();
-        fallingImage.getTexture().dispose();
-        crashingImage.getTexture().dispose();
-        crashSlideImage.getTexture().dispose();
+        playerAnimationHandler.dispose();
+    }
+}
 
-        idleFlippedImage.getTexture().dispose();
-        runningFlippedImage.getTexture().dispose();
-        risingFlippedImage.getTexture().dispose();
-        fallingFlippedImage.getTexture().dispose();
-        crashingFlippedImage.getTexture().dispose();
-        crashFlippedSlideImage.getTexture().dispose();
+class PlayerAnimationHandler {
+    private final Animation<TextureRegion> IdleAnimation, FlippedIdleAnimation;
+    private final Animation<TextureRegion> RunAnimation, FlippedRunAnimation;
+    private final Animation<TextureRegion> JumpAnimation, FlippedJumpAnimation;
+
+    private final Animation<TextureRegion> ClingWallAnimation, FlippedClingWallAnimation;
+    private final Animation<TextureRegion> ClimbWallAnimation, FlippedClimbWallAnimation;
+
+    private final Animation<TextureRegion> RiseAnimation, FlippedRiseAnimation;
+    private final Animation<TextureRegion> FallAnimation, FlippedFallAnimation;
+    private final Animation<TextureRegion> CrashAnimation, FlippedCrashAnimation;
+    private final Animation<TextureRegion> RollingAnimation, FlippedRollingAnimation;
+    private final Animation<TextureRegion> DrawingAnimation, FlippedDrawingAnimation;
+    private final Animation<TextureRegion> AttackAnimation, FlippedAttackAnimation;
+    private final Animation<TextureRegion> AttackEffectAnimation, FlippedAttackEffectAnimation;
+
+    private final Texture IdleTexture, RunTexture, JumpTexture, RiseTexture, FallTexture,
+            CrashTexture, RollingTexture, ClingWallSpriteSheet, ClimbWallSpriteSheet, DrawSpriteSheet,
+            AttackSpriteSheet ,placeHolder, AttackTexture, AttackPose, AttackEffect;
+
+    float elapsedTime, jumpAnimElapsedTime, crashAnimElapsedTime, rollingAnimTime, drawAnimTime, attackAnimtime;
+
+    public boolean isJumAnimFinished = false, isCrashAnimFinished = false, isRollingAnimFinished = false,
+    isDrawAnimFinished = false, isAttackAnimFinished = false;
+    private final Player player;
+    private float positionX, positionY, width, height,
+            effectPositionX, effectWidth, effectHeight;
+    private TextureRegion currentFrame= new TextureRegion();
+    private TextureRegion effectsFrame = new TextureRegion();
+
+    private final TextureRegion AttackPoseRegion;
+    private final TextureRegion FlippedAttackPoseRegion;
+
+    public PlayerAnimationHandler(Player player){
+        this.player = player;
+        IdleTexture= new Texture("assets/Charas/CharaAnimTest/IdleSpriteSheet.png");
+        RunTexture = new Texture("assets/Charas/CharaAnimTest/RunSpriteSheet.png");
+        JumpTexture = new Texture("assets/Charas/CharaAnimTest/JumpSpriteSheet.png");
+        RiseTexture = new Texture("assets/Charas/CharaAnimTest/RiseSpriteSheet.png");
+        FallTexture = new Texture("assets/Charas/CharaAnimTest/FallSpriteSheet.png");
+        CrashTexture = new Texture("assets/Charas/CharaAnimTest/CrashSpriteSheet.png");
+        RollingTexture = new Texture("assets/Charas/CharaAnimTest/RollingSpriteSheet.png");
+        ClingWallSpriteSheet = new Texture("assets/Charas/CharaAnimTest/ClingWallSpriteSheet.png");
+        ClimbWallSpriteSheet = new Texture("assets/Charas/CharaAnimTest/ClimbSpriteSheet.png");
+        DrawSpriteSheet = new Texture("assets/Charas/CharaAnimTest/DrawSpriteSheet.png");
+        AttackSpriteSheet = new Texture("assets/Charas/CharaAnimTest/AttackSpriteSheet.png");
+        AttackTexture = new Texture("assets/Charas/CharaAnimTest/AttackEffect.png");
+        AttackPose = new Texture("assets/Charas/CharaAnimTest/AttackPose.png");
+        AttackEffect = new Texture("assets/Charas/CharaAnimTest/AttackEffect2.png");
+        placeHolder = new Texture("assets/Charas/CharaAnimTest/PlaceHolder.png");
+
+        AttackPoseRegion = new TextureRegion(AttackPose);
+        FlippedAttackPoseRegion = new TextureRegion(AttackPose);
+        FlippedAttackPoseRegion.flip(true, false);
+
+        IdleAnimation = animate(1, 8, IdleTexture,1/4f, false);
+        FlippedIdleAnimation = animate(1, 8, IdleTexture,1/4f, true);
+
+        RunAnimation = animate(1, 6, RunTexture,1/10f, false);
+        FlippedRunAnimation = animate(1, 6, RunTexture,1/10f, true);
+
+        JumpAnimation = animate(1, 5, JumpTexture,1/24f, false);
+        FlippedJumpAnimation = animate(1, 5, JumpTexture,1/24f, true);
+
+        RiseAnimation = animate(1, 3, RiseTexture,1/18f, false);
+        FlippedRiseAnimation = animate(1, 3, RiseTexture,1/18f, true);
+
+        FallAnimation = animate(1, 4, FallTexture,1/12f, false);
+        FlippedFallAnimation = animate(1, 4, FallTexture,1/12f, true);
+
+        CrashAnimation = animate(1, 6, CrashTexture,1/22f, false);
+        FlippedCrashAnimation = animate(1, 6, CrashTexture,1/22f, true);
+
+        RollingAnimation = animate(1,9, RollingTexture, 1/20f, false);
+        FlippedRollingAnimation = animate(1,9, RollingTexture, 1/20f, true);
+
+        ClingWallAnimation = animate(1, 2, ClingWallSpriteSheet, 1/2f, false);
+        FlippedClingWallAnimation = animate(1, 2, ClingWallSpriteSheet, 1/2f, true);
+
+        ClimbWallAnimation = animate(1, 4, ClimbWallSpriteSheet, 1/10f, false);
+        FlippedClimbWallAnimation = animate(1, 4, ClimbWallSpriteSheet, 1/10f, true);
+
+        DrawingAnimation = animate(1, 4, DrawSpriteSheet, 1/32f, false);
+        FlippedDrawingAnimation = animate(1, 4, DrawSpriteSheet, 1/32f, true);
+
+        AttackAnimation = animate(1, 3, AttackSpriteSheet, 1/8f, false);
+        FlippedAttackAnimation = animate(1, 3, AttackSpriteSheet, 1/8f, true);
+
+        AttackEffectAnimation = animate(1, 3, AttackTexture, 1/12f, false);
+        FlippedAttackEffectAnimation = animate(1, 3, AttackTexture, 1/12f, true);
+
+    }
+
+    public void render(Batch batch){
+        update();
+        switch (player.currentState) {
+            case IDLE: {
+                currentFrame = player.isFacingRight ? FlippedIdleAnimation.getKeyFrame(elapsedTime,true) : IdleAnimation.getKeyFrame(elapsedTime, true);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+                break;
+            }
+            case RUNNING : {
+                currentFrame = player.isFacingRight ? FlippedRunAnimation.getKeyFrame(elapsedTime,true) : RunAnimation.getKeyFrame(elapsedTime, true);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+                break;
+            }
+            case JUMPING: {
+                jumpAnimElapsedTime += Gdx.graphics.getDeltaTime();
+                currentFrame = player.isFacingRight ? FlippedJumpAnimation.getKeyFrame(jumpAnimElapsedTime,false) : JumpAnimation.getKeyFrame(jumpAnimElapsedTime, false);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+                break;
+            }
+            case RISING: {
+                currentFrame = player.isFacingRight ? FlippedRiseAnimation.getKeyFrame(elapsedTime,true) : RiseAnimation.getKeyFrame(elapsedTime, true);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+                break;
+            }
+            case FALLING: {
+                currentFrame = player.isFacingRight ? FlippedFallAnimation.getKeyFrame(elapsedTime,true) : FallAnimation.getKeyFrame(elapsedTime, true);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+                break;
+            }
+            case CRASH: {
+                crashAnimElapsedTime += Gdx.graphics.getDeltaTime();
+                currentFrame = player.isFacingRight ? FlippedCrashAnimation.getKeyFrame(crashAnimElapsedTime,false) : CrashAnimation.getKeyFrame(crashAnimElapsedTime, false);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+                break;
+            }
+            case ROLLING: {
+                rollingAnimTime += Gdx.graphics.getDeltaTime();
+                currentFrame = player.isFacingRight ? FlippedRollingAnimation.getKeyFrame(rollingAnimTime,false) : RollingAnimation.getKeyFrame(rollingAnimTime, false);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+                break;
+            }
+            case WALLCLING:{
+                currentFrame = player.isFacingRight ? FlippedClingWallAnimation.getKeyFrame(elapsedTime,true) : ClingWallAnimation.getKeyFrame(elapsedTime, true);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+                break;
+            }
+            case WALLCLIMB:
+            case WALLCLIMBDOWN: {
+                currentFrame = player.isFacingRight ? FlippedClimbWallAnimation.getKeyFrame(elapsedTime,true) : ClimbWallAnimation.getKeyFrame(elapsedTime, true);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+                break;
+            }
+            case DRAWING:{
+                drawAnimTime += Gdx.graphics.getDeltaTime();
+                currentFrame = player.isFacingRight ? FlippedDrawingAnimation.getKeyFrame(drawAnimTime,false) : DrawingAnimation.getKeyFrame(drawAnimTime, false);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+                break;
+            }
+            case ATTACKING:{
+                attackAnimtime += Gdx.graphics.getDeltaTime();
+                //currentFrame = player.isFacingRight ? FlippedAttackAnimation.getKeyFrame(attackAnimtime,false) : AttackAnimation.getKeyFrame(attackAnimtime, false);
+
+                currentFrame = player.isFacingRight ? FlippedAttackPoseRegion : AttackPoseRegion;
+                effectsFrame = player.isFacingRight ? FlippedAttackEffectAnimation.getKeyFrame(attackAnimtime,false) : AttackEffectAnimation.getKeyFrame(attackAnimtime, false);
+                batch.draw(currentFrame,positionX, positionY, width, height);
+
+                //0 - 60 vertical Upwards
+                //60 - 130 horizontal
+                //130 - 180 vertical downwards
+                float theta = 0;
+                /*
+                if (attackAngle >= 0 && attackAngle <= 60) theta = 90 - attackAngle;
+                if (attackAngle > 60 && attackAngle < 130) theta = 0;
+                if (attackAngle >= 130 && attackAngle <= 180) theta = -attackAngle + 90;
+                */
+
+                if (attackAngle >= 0 && attackAngle <= 60) theta = 45;
+                if (attackAngle > 60 && attackAngle < 130) theta = 0;
+                if (attackAngle >= 130 && attackAngle <= 180) theta = -45;
+
+                if(!player.isFacingRight) {
+                    if (attackAngle >= 0 && attackAngle <= 60) theta = -45;
+                    if (attackAngle >= 130 && attackAngle <= 180) theta = 45;
+                }
+
+                //batch.draw(AttackEffect, effectPositionX, positionY, AttackEffect.getWidth(), AttackEffect.getHeight());
+                batch.draw(effectsFrame, effectPositionX, positionY, effectWidth/2, effectHeight/2, effectWidth, effectHeight, 3, 0.5f, theta);
+                break;
+            }
+
+        }
+        //batch.draw(currentFrame,positionX, positionY, width, height);
+
+    }
+
+    private void update(){
+        positionX = player.positionX - PlayerWidth /2;
+        positionY = player.positionY - PlayerHeight;
+        width = currentFrame.getRegionWidth();
+        height = currentFrame.getRegionHeight();
+
+        effectWidth = effectsFrame.getRegionWidth();
+        effectHeight = effectsFrame.getRegionHeight();
+        effectPositionX = positionX - effectWidth/2 + PlayerWidth/2;
+
+        elapsedTime += Gdx.graphics.getDeltaTime();
+
+
+
+
+        if(JumpAnimation.isAnimationFinished(jumpAnimElapsedTime)) isJumAnimFinished = true;
+        if(CrashAnimation.isAnimationFinished(crashAnimElapsedTime)) isCrashAnimFinished = true;
+        if(RollingAnimation.isAnimationFinished(rollingAnimTime)) isRollingAnimFinished = true;
+        if(DrawingAnimation.isAnimationFinished(drawAnimTime)) isDrawAnimFinished = true;
+        if(DrawingAnimation.isAnimationFinished(attackAnimtime)) isAttackAnimFinished = true;
+    }
+
+    public void dispose(){
+        IdleTexture.dispose();
+        RunTexture.dispose();
+        JumpTexture.dispose();
+        RiseTexture.dispose();
+        FallTexture.dispose();
+        CrashTexture.dispose();
+        RollingTexture.dispose();
+        ClingWallSpriteSheet.dispose();
+        ClimbWallSpriteSheet.dispose();
+        DrawSpriteSheet.dispose();
+        AttackSpriteSheet.dispose();
+        AttackTexture.dispose();
+        AttackPose.dispose();
+        AttackEffect.dispose();
+        placeHolder.dispose();
     }
 }
 
