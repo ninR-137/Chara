@@ -122,6 +122,7 @@ public class MainGame extends ApplicationAdapter {
 		position.x = mainCamera.position.x + (player.positionX - (mainCamera.position.x)) * lerp;
 		position.y = mainCamera.position.y + (player.positionY - mainCamera.position.y) * lerp;
 
+
 		Vector3 v3 = new Vector3();
 		v3.x = position.x/PPM;
 		v3.y = position.y/PPM;
@@ -129,6 +130,14 @@ public class MainGame extends ApplicationAdapter {
 		mainCamera.update();
 		B2DCam.position.set(v3);
 		B2DCam.update();
+
+
+		//--------------------------------------------------------------------------//
+		if (Rumble.getRumbleTimeLeft() > 0){
+			Rumble.tick(Gdx.graphics.getDeltaTime());
+			mainCamera.translate(Rumble.getPos());
+		}
+		//---------------------------------------------------//
 	}
 	
 	@Override

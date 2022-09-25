@@ -28,7 +28,7 @@ public class GlobalVariables {
      * in the render() method
      */
 
-    public static float VIEWPORT_SCALE = 0.4f;
+    public static float VIEWPORT_SCALE = 0.5f;
     //THIS IS GOING TO BE IN PIXELS
     public static float VIEWPORT_WIDTH = 980 * VIEWPORT_SCALE;
     public static  float VIEWPORT_HEIGHT = 980 * VIEWPORT_SCALE;

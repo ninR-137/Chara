@@ -2,12 +2,14 @@ package com.mygdx.game.Entities;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
+import com.mygdx.game.Rumble;
 import com.mygdx.game.Util;
 
 import static com.mygdx.game.GlobalVariables.*;
@@ -19,6 +21,7 @@ public class Player {
 
     private final Util safeTimer = new Util(), attackCoolDown = new Util();
     private PlayerAnimationHandler playerAnimationHandler;
+    private Sound slashSound, weirdBass;
 
     public enum states {
         IDLE, RUNNING, JUMPING,
@@ -40,6 +43,8 @@ public class Player {
 
         //TEST ANIMATIONS
         playerAnimationHandler = new PlayerAnimationHandler(this);
+        slashSound = Gdx.audio.newSound(Gdx.files.internal("SoundEffects/SlashSound.mp3"));
+        weirdBass = Gdx.audio.newSound(Gdx.files.internal("SoundEffects/AttackBass.mp3"));
     }
 
     public void render(Batch batch){
@@ -90,6 +95,8 @@ public class Player {
         if(mouse_leftClicked && attackCoolDown.elapsedTimeInSecond >= 0.5f) {
             attackCoolDown.resetTime();
             transitionState(states.DRAWING);
+            //weirdBass.play(0.5f);
+            slashSound.play(1f);
             transitionLock = true;
         }
 
@@ -206,6 +213,8 @@ public class Player {
 
     public void dispose(){
         playerAnimationHandler.dispose();
+        slashSound.dispose();
+        weirdBass.dispose();
     }
 }
 
@@ -361,6 +370,7 @@ class PlayerAnimationHandler {
                 break;
             }
             case ATTACKING:{
+                Rumble.rumble(5, .2f);
                 attackAnimtime += Gdx.graphics.getDeltaTime();
                 //currentFrame = player.isFacingRight ? FlippedAttackAnimation.getKeyFrame(attackAnimtime,false) : AttackAnimation.getKeyFrame(attackAnimtime, false);
 
