@@ -9,6 +9,8 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
+import com.mygdx.game.B2dModel;
+import com.mygdx.game.GlobalVariables;
 import com.mygdx.game.Rumble;
 import com.mygdx.game.Util;
 
@@ -19,194 +21,207 @@ public class Player {
     public float positionX, positionY;
     public Vector2 currentVelocity = new Vector2();
 
-    private final Util safeTimer = new Util(), attackCoolDown = new Util();
+    private final Util crashValidatorTimer = new Util(), attackCoolDown = new Util(), rollCoolDown = new Util(),
+    ledgeJumpCoolDown = new Util();
     private PlayerAnimationHandler playerAnimationHandler;
     private Sound slashSound, weirdBass;
 
     public enum states {
         IDLE, RUNNING, JUMPING,
         RISING, FALLING, CRASH , CRASH_SLIDE , ROLLING, WALLCLING,
-        WALLCLIMB, WALLCLIMBDOWN, GLIDING, NONE, LAND, DRAWING, ATTACKING;
+        WALLCLIMB, WALLCLIMBDOWN, GLIDING, NONE, LAND, DRAWING, ATTACKING,
+        DEAD, LEDGE_UPWARDS;
     }
 
     public states previousState = states.IDLE;
     public states currentState = states.IDLE;
     public states subCharacterState = states.NONE;
-    public boolean playerShouldJump = false;
     public boolean isFacingRight = true;
     //BE VERY CAREFUL WHEN USING THIS
-    private boolean transitionLock = false;
-    private boolean isHorizontalInput = false;
-    private boolean isVerticalInput = false;
+    public boolean transitionLock = false;
 
     public Player() {
 
         //TEST ANIMATIONS
         playerAnimationHandler = new PlayerAnimationHandler(this);
-        slashSound = Gdx.audio.newSound(Gdx.files.internal("SoundEffects/SlashSound.mp3"));
-        weirdBass = Gdx.audio.newSound(Gdx.files.internal("SoundEffects/AttackBass.mp3"));
+        slashSound = Gdx.audio.newSound(Gdx.files.internal("SoundEffects/NormalAttack.mp3"));
+        weirdBass = Gdx.audio.newSound(Gdx.files.internal("SoundEffects/Bomb_004.wav"));
     }
 
     public void render(Batch batch){
         playerAnimationHandler.render(batch);
     }
     public void update(){
-        miscUpdate();
-        if(rightSideValue > 0 || leftSideValue > 0) {
-            wallClingUpdate();
-        } else {
-            if (!isHorizontalInput && !isVerticalInput) transitionState(states.IDLE);
-            horizontalStateHandler();
-            jumpInputHandler();
-            riseHandler();
-            fallHandler();
+        //TODO : CLING AND DRAW
+        subCharacterState = states.NONE;
+
+        switch (currentState) {
+            case IDLE:
+                checkAttack();
+
+                if(held_A || held_D) transitionState(states.RUNNING);
+                if(Gdx.input.isKeyJustPressed(Input.Keys.W)) {
+                    transitionState(states.JUMPING);
+                    transitionLock = true;
+                }
+
+
+                checkLedgeJump();
+                break;
+            case RISING:
+                checkAttack();
+                if(held_A || held_D) subCharacterState = states.GLIDING;
+                break;
+            case FALLING:
+                crashValidatorTimer.countSeconds();
+                checkAttack();
+                if(held_A || held_D) subCharacterState = states.GLIDING;
+                if(numFootContacts != 0) {
+                    if(crashValidatorTimer.elapsedTimeInSecond > 4f) {
+                        transitionState(states.CRASH);
+                        transitionLock = true;
+                    }
+                    else {
+                        transitionState(states.IDLE);
+                    }
+                    crashValidatorTimer.resetTime();
+                }
+
+                break;
+            case CRASH:
+                if(playerAnimationHandler.isCrashAnimFinished){
+                    playerAnimationHandler.isCrashAnimFinished = false;
+                    playerAnimationHandler.crashAnimElapsedTime = 0;
+                    transitionLock = false;
+                    if(held_A || held_D) {
+                        transitionState(states.ROLLING);
+                        transitionLock = true;
+                    }
+                }
+                break;
+            case ROLLING:
+                if(playerAnimationHandler.isRollingAnimFinished){
+                    playerAnimationHandler.isRollingAnimFinished = false;
+                    playerAnimationHandler.rollingAnimTime = 0;
+                    transitionLock = false;
+                    if(held_A || held_D) {
+                        transitionState(states.RUNNING);
+                    }
+                }
+
+                break;
+            case RUNNING:
+                checkAttack();
+                boolean horizontalMovementInput = held_A||held_D;
+                if(Gdx.input.isKeyJustPressed(Input.Keys.W)) {
+                    transitionState(states.JUMPING);
+                    transitionLock = true;
+                }
+                if(!horizontalMovementInput) initStateCheck();
+
+                checkLedgeJump();
+                break;
+            case JUMPING:
+                if(playerAnimationHandler.isJumAnimFinished){
+                    playerAnimationHandler.jumpAnimElapsedTime = 0;
+                    playerAnimationHandler.isJumAnimFinished = false;
+                    transitionLock = false;
+                    transitionState(states.RISING);
+                }
+                break;
+            case DRAWING:
+                if(playerAnimationHandler.isDrawAnimFinished){
+                    playerAnimationHandler.isDrawAnimFinished = false;
+                    slashSound.play(0.65f);
+                    playerAnimationHandler.drawAnimTime = 0;
+                    transitionLock = false;
+                    transitionState(states.ATTACKING);
+                    transitionLock = true;
+                }
+                break;
+            case ATTACKING:
+                if(playerAnimationHandler.isAttackAnimFinished){
+                    playerAnimationHandler.isAttackAnimFinished = false;
+                    playerAnimationHandler.attackAnimtime = 0;
+                    transitionLock = false;
+                    transitionState(states.IDLE);
+                }
+                break;
+            case LEDGE_UPWARDS: {
+                ledgeJumpCoolDown.resetTime();
+                transitionState(states.FALLING);
+            }
         }
-        attackUpdate();
+
+        initStateCheck();
+        wallClimbUpdate();
+    }
+
+    private void checkAttack(){
+        if(mouse_leftClicked && attackCoolDown.elapsedTimeInSecond > 1) {
+            transitionState(states.DRAWING);
+            transitionLock = true;
+            attackCoolDown.resetTime();
+        }
+    }
+
+    private void checkLedgeJump(){
+        if(leftLegSideValue > 0 || rightLegSideValue > 0) {
+            if(ledgeJumpCoolDown.elapsedTimeInSecond > 0.2f) {
+                transitionState(states.LEDGE_UPWARDS);
+            } else {
+                transitionState(states.IDLE);
+            }
+        }
+    }
+    private void wallClimbUpdate(){
+        ledgeJumpCoolDown.countSeconds();
+        boolean leftCondition = leftSideValue > 0 && held_A;
+        boolean rightCondition = rightSideValue > 0 && held_D;
+        if(leftCondition || rightCondition) {
+            transitionState(states.WALLCLING);
+        }
+
+        if(currentState.equals(states.WALLCLING)){
+            if(held_W) {
+                transitionState(states.WALLCLIMB);
+                return;
+            }
+            if(held_S) {
+                transitionState(states.WALLCLIMBDOWN);
+                return;
+            }
+
+            if(!(leftCondition||rightCondition)) transitionState(states.IDLE);
+        }
+    }
+    public void initStateCheck(){
+        attackCoolDown.countSeconds();
+        rollCoolDown.countSeconds();
+        if(Gdx.input.isKeyPressed(Input.Keys.D)) isFacingRight = true;
+        if(Gdx.input.isKeyPressed(Input.Keys.A)) isFacingRight = false;
+        boolean Grounded = numFootContacts > 0;
+        boolean movementInput = held_A||held_D||held_W;
+
+        if(Grounded && !movementInput) transitionState(states.IDLE);
+        if(!Grounded && currentVelocity.y <= 0) {
+            transitionState(states.FALLING);
+        }
+        if(Grounded && Gdx.input.isKeyPressed(Input.Keys.S) && rollCoolDown.elapsedTimeInSecond > 1f) {
+            transitionState(states.ROLLING);
+            transitionLock = true;
+            rollCoolDown.resetTime();
+        }
+
+
+        //IMPORTANT TO MAKE SURE JUMP STEPS GETS FINISHED
+        if (remainingJumpSteps > 0) transitionState(states.RISING);
     }
 
     public void transitionState(states state){
         if(transitionLock) return;
         previousState = currentState;
         currentState = state;
-    }
-    public void miscUpdate(){
-        isVerticalInput = numFootContacts == 0;
-
-        //System.out.println(leftSideValue + "||" + rightSideValue);
-        if(Gdx.input.isKeyPressed(Input.Keys.W)) playerShouldJump = true;
-        if(Gdx.input.isKeyPressed(Input.Keys.A)) isFacingRight = false;
-        if(Gdx.input.isKeyPressed(Input.Keys.D)) isFacingRight = true;
-
-
-        if(transitionLock) {
-            safeTimer.countSeconds();
-            if (safeTimer.elapsedTimeInSecond >= 0.75f) {
-                safeTimer.resetTime();
-                transitionLock = false;
-            }
-        } else {
-            safeTimer.resetTime();
-        }
-
-    }
-
-    public void attackUpdate(){
-        attackCoolDown.countSeconds();
-        if(mouse_leftClicked && attackCoolDown.elapsedTimeInSecond >= 0.5f) {
-            attackCoolDown.resetTime();
-            transitionState(states.DRAWING);
-            //weirdBass.play(0.5f);
-            slashSound.play(1f);
-            transitionLock = true;
-        }
-
-        if(currentState.equals(states.DRAWING)){
-            if(playerAnimationHandler.isDrawAnimFinished){
-                transitionLock = false;
-                transitionState(states.ATTACKING);
-                playerAnimationHandler.isDrawAnimFinished = false;
-                playerAnimationHandler.drawAnimTime = 0;
-                transitionLock = true;
-            }
-        }
-
-        if(currentState.equals(states.ATTACKING)){
-            if(playerAnimationHandler.isAttackAnimFinished){
-                transitionLock = false;
-                playerAnimationHandler.isAttackAnimFinished = false;
-                playerAnimationHandler.attackAnimtime = 0;
-            }
-        }
-    }
-    public void wallClingUpdate(){
-        transitionState(states.WALLCLING);
-        //SOME BUGS REGARDING TRANSITION LOCK DURING THE JUMPSTATE
-        if(currentState.equals(states.JUMPING)){
-            transitionLock = false;
-            transitionState(states.WALLCLING);
-        }
-        if(held_W) transitionState(states.WALLCLIMB);
-        if(held_S) transitionState(states.WALLCLIMBDOWN);
-    }
-    private void horizontalStateHandler(){
-        boolean isGrounded = numFootContacts > 0;
-        subCharacterState = states.NONE;
-        if(held_D || held_A){
-            isHorizontalInput = true;
-            if(isGrounded) {
-                transitionState(states.RUNNING);
-                return;
-            }
-            subCharacterState = states.GLIDING;
-            return;
-        }
-        //IF THE EXECUTION REACHES HERE IT MEANS INPUT VALUES FOR DIRECTION IS NOT PASSED
-        isHorizontalInput = false;
-    }
-    private void jumpInputHandler(){
-        if(!playerShouldJump || m_jumpTimeout > 0) return;
-        if(numFootContacts > 0) {
-            transitionState(states.JUMPING);
-            transitionLock = true;
-        }
-        isVerticalInput = true;
-        playerShouldJump = false;
-    }
-    private void riseHandler(){
-        if(remainingJumpSteps > 0) {
-            if(currentState.equals(states.JUMPING) && numFootContacts > 0){
-                if(playerAnimationHandler.isJumAnimFinished){
-                    transitionLock = false;
-                    transitionState(states.RISING);
-                    playerAnimationHandler.jumpAnimElapsedTime = 0;
-                    playerAnimationHandler.isJumAnimFinished = false;
-                    return;
-                }
-            }
-            transitionState(states.RISING);
-        }
-    }
-    private void fallHandler(){
-        if(currentVelocity.y < 0 && numFootContacts <= 0) {
-            transitionState(states.FALLING);
-            return;
-        }
-        //CHECK IF CONDITIONS ARE FOR PLAYER CRASH
-        if(numFootContacts > 0){
-            //DUE TO OSCILLATING STATE CHANGES
-            if(previousState.equals(states.FALLING)){
-                states state = states.CRASH;
-                //WILL BE REMOVING CRASH SLIDE FOR NOW
-                transitionState(state);
-                transitionLock = true;
-                //System.out.println("TRANSITION IS NOW LOCKED");
-                return;
-            }
-        }
-        //CRASH TIMER HANDLER
-        if(currentState.equals(states.CRASH)){
-            if(playerAnimationHandler.isCrashAnimFinished){
-                states state = held_A||held_D ? states.ROLLING : states.IDLE;
-                transitionLock = false;
-                transitionState(state);
-                playerAnimationHandler.crashAnimElapsedTime = 0;
-                playerAnimationHandler.isCrashAnimFinished = false;
-                if(state.equals(states.ROLLING)){
-                    transitionLock = true;
-                }
-            }
-            return;
-        }
-        if(currentState.equals(states.ROLLING)){
-            if(playerAnimationHandler.isRollingAnimFinished){
-                states state = held_A || held_D ? states.RUNNING : states.IDLE;
-                transitionLock = false;
-                transitionState(state);
-                playerAnimationHandler.rollingAnimTime = 0;
-                playerAnimationHandler.isRollingAnimFinished = false;
-            }
-        }
-
     }
 
 
@@ -279,14 +294,14 @@ class PlayerAnimationHandler {
         RunAnimation = animate(1, 6, RunTexture,1/10f, false);
         FlippedRunAnimation = animate(1, 6, RunTexture,1/10f, true);
 
-        JumpAnimation = animate(1, 5, JumpTexture,1/24f, false);
-        FlippedJumpAnimation = animate(1, 5, JumpTexture,1/24f, true);
+        JumpAnimation = animate(1, 5, JumpTexture,1/42f, false);
+        FlippedJumpAnimation = animate(1, 5, JumpTexture,1/42f, true);
 
-        RiseAnimation = animate(1, 3, RiseTexture,1/18f, false);
-        FlippedRiseAnimation = animate(1, 3, RiseTexture,1/18f, true);
+        RiseAnimation = animate(1, 3, RiseTexture,1/3f, false);
+        FlippedRiseAnimation = animate(1, 3, RiseTexture,1/3f, true);
 
-        FallAnimation = animate(1, 4, FallTexture,1/12f, false);
-        FlippedFallAnimation = animate(1, 4, FallTexture,1/12f, true);
+        FallAnimation = animate(1, 4, FallTexture,1/3f, false);
+        FlippedFallAnimation = animate(1, 4, FallTexture,1/3f, true);
 
         CrashAnimation = animate(1, 6, CrashTexture,1/22f, false);
         FlippedCrashAnimation = animate(1, 6, CrashTexture,1/22f, true);
@@ -303,11 +318,11 @@ class PlayerAnimationHandler {
         DrawingAnimation = animate(1, 4, DrawSpriteSheet, 1/32f, false);
         FlippedDrawingAnimation = animate(1, 4, DrawSpriteSheet, 1/32f, true);
 
-        AttackAnimation = animate(1, 3, AttackSpriteSheet, 1/8f, false);
-        FlippedAttackAnimation = animate(1, 3, AttackSpriteSheet, 1/8f, true);
+        AttackAnimation = animate(1, 3, AttackSpriteSheet, 1/4f, false);
+        FlippedAttackAnimation = animate(1, 3, AttackSpriteSheet, 1/4f, true);
 
-        AttackEffectAnimation = animate(1, 3, AttackTexture, 1/12f, false);
-        FlippedAttackEffectAnimation = animate(1, 3, AttackTexture, 1/12f, true);
+        AttackEffectAnimation = animate(1, 3, AttackTexture, 1/28f, false);
+        FlippedAttackEffectAnimation = animate(1, 3, AttackTexture, 1/28f, true);
 
     }
 
@@ -322,6 +337,7 @@ class PlayerAnimationHandler {
             case RUNNING : {
                 currentFrame = player.isFacingRight ? FlippedRunAnimation.getKeyFrame(elapsedTime,true) : RunAnimation.getKeyFrame(elapsedTime, true);
                 batch.draw(currentFrame,positionX, positionY, width, height);
+
                 break;
             }
             case JUMPING: {
@@ -335,7 +351,8 @@ class PlayerAnimationHandler {
                 batch.draw(currentFrame,positionX, positionY, width, height);
                 break;
             }
-            case FALLING: {
+            case FALLING:
+            case LEDGE_UPWARDS: {
                 currentFrame = player.isFacingRight ? FlippedFallAnimation.getKeyFrame(elapsedTime,true) : FallAnimation.getKeyFrame(elapsedTime, true);
                 batch.draw(currentFrame,positionX, positionY, width, height);
                 break;
@@ -370,37 +387,27 @@ class PlayerAnimationHandler {
                 break;
             }
             case ATTACKING:{
-                Rumble.rumble(5, .2f);
+                Rumble.rumble(12, .2f);
                 attackAnimtime += Gdx.graphics.getDeltaTime();
-                //currentFrame = player.isFacingRight ? FlippedAttackAnimation.getKeyFrame(attackAnimtime,false) : AttackAnimation.getKeyFrame(attackAnimtime, false);
 
                 currentFrame = player.isFacingRight ? FlippedAttackPoseRegion : AttackPoseRegion;
                 effectsFrame = player.isFacingRight ? FlippedAttackEffectAnimation.getKeyFrame(attackAnimtime,false) : AttackEffectAnimation.getKeyFrame(attackAnimtime, false);
                 batch.draw(currentFrame,positionX, positionY, width, height);
 
-                //0 - 60 vertical Upwards
-                //60 - 130 horizontal
-                //130 - 180 vertical downwards
-                float theta = 0;
-                /*
-                if (attackAngle >= 0 && attackAngle <= 60) theta = 90 - attackAngle;
-                if (attackAngle > 60 && attackAngle < 130) theta = 0;
-                if (attackAngle >= 130 && attackAngle <= 180) theta = -attackAngle + 90;
-                */
 
-                if (attackAngle >= 0 && attackAngle <= 60) theta = 45;
-                if (attackAngle > 60 && attackAngle < 130) theta = 0;
-                if (attackAngle >= 130 && attackAngle <= 180) theta = -45;
+                if (attackAngle >= 0 && attackAngle <= 60) approximatedAttackAngle = 45;
+                if (attackAngle > 60 && attackAngle < 130) approximatedAttackAngle = 0;
+                if (attackAngle >= 130 && attackAngle <= 180) approximatedAttackAngle = -45;
 
                 if(!player.isFacingRight) {
-                    if (attackAngle >= 0 && attackAngle <= 60) theta = -45;
-                    if (attackAngle >= 130 && attackAngle <= 180) theta = 45;
+                    if (attackAngle >= 0 && attackAngle <= 60) approximatedAttackAngle = -45;
+                    if (attackAngle >= 130 && attackAngle <= 180) approximatedAttackAngle = 45;
                 }
-
-                //batch.draw(AttackEffect, effectPositionX, positionY, AttackEffect.getWidth(), AttackEffect.getHeight());
-                batch.draw(effectsFrame, effectPositionX, positionY, effectWidth/2, effectHeight/2, effectWidth, effectHeight, 3, 0.5f, theta);
+                
+                batch.draw(effectsFrame, effectPositionX, positionY, effectWidth/2, effectHeight/2, effectWidth, effectHeight, 4, 0.5f, approximatedAttackAngle);
                 break;
             }
+
 
         }
         //batch.draw(currentFrame,positionX, positionY, width, height);
@@ -410,17 +417,14 @@ class PlayerAnimationHandler {
     private void update(){
         positionX = player.positionX - PlayerWidth /2;
         positionY = player.positionY - PlayerHeight;
-        width = currentFrame.getRegionWidth();
-        height = currentFrame.getRegionHeight();
+        width = (PlayerWidth/currentFrame.getRegionWidth()) * currentFrame.getRegionWidth();
+        height = PlayerHeight * 1.5f;
 
         effectWidth = effectsFrame.getRegionWidth();
         effectHeight = effectsFrame.getRegionHeight();
         effectPositionX = positionX - effectWidth/2 + PlayerWidth/2;
 
         elapsedTime += Gdx.graphics.getDeltaTime();
-
-
-
 
         if(JumpAnimation.isAnimationFinished(jumpAnimElapsedTime)) isJumAnimFinished = true;
         if(CrashAnimation.isAnimationFinished(crashAnimElapsedTime)) isCrashAnimFinished = true;

@@ -94,17 +94,16 @@ public class KeyboardController implements InputProcessor{
         playerAngleBasis.set(0, 1/PPM);
         playerAngleBasis.nor();
         float angle = (float) Math.toDegrees(Math.acos(temp.dot(playerAngleBasis)));
+
         attackAngle = (int) Math.floor(Math.round(angle));
-        //System.out.println(attackAngle);
 
-        mouse_leftClicked = true;
-
+        if(button == 0) mouse_leftClicked = true;
         return true;
     }
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-        mouse_leftClicked = false;
+        if(button == 0) mouse_leftClicked = false;
         return false;
     }
 

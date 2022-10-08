@@ -7,9 +7,11 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.RayCastCallback;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
 public class GlobalVariables {
@@ -28,7 +30,7 @@ public class GlobalVariables {
      * in the render() method
      */
 
-    public static float VIEWPORT_SCALE = 0.5f;
+    public static float VIEWPORT_SCALE = 0.4f;
     //THIS IS GOING TO BE IN PIXELS
     public static float VIEWPORT_WIDTH = 980 * VIEWPORT_SCALE;
     public static  float VIEWPORT_HEIGHT = 980 * VIEWPORT_SCALE;
@@ -38,18 +40,24 @@ public class GlobalVariables {
     public static final OrthographicCamera B2DCam = new OrthographicCamera(VIEWPORT_WIDTH/PPM, VIEWPORT_HEIGHT/PPM);
     public static final ExtendViewport extendMainViewPort = new ExtendViewport(mainCamera.viewportWidth, mainCamera.viewportHeight, mainCamera);
     public static final ExtendViewport extendB2DViewPort = new ExtendViewport(B2DCam.viewportWidth, B2DCam.viewportHeight, B2DCam);
-
+    public static boolean Render_Box2D = true;
     //-------------------------------------------------------------------------------------------------------------------------------------//
-    public static final float PlayerWidth = 32, PlayerHeight = 32; //PIXEL MEASUREMENT
+    public static final float PlayerWidth = 21.33f, PlayerHeight = 21f; //PIXEL MEASUREMENT
     private final static float DEFAULT_PLAYER_SIZE = PPM;
     public static final float WORLD_GRAVITY = -40f;
-    public static final float PLAYER_MOVEMENT_VELOCITY = (800f/PPM) * (PlayerWidth/DEFAULT_PLAYER_SIZE);
+    public static final float PLAYER_MOVEMENT_VELOCITY = (1200f/PPM) * (PlayerWidth/DEFAULT_PLAYER_SIZE);
     public static final float PLAYER_MOVEMENT_AIR_VELOCITY = (250f/PPM) * (PlayerWidth/DEFAULT_PLAYER_SIZE);
-    public static final float PLAYER_WHEEL_TORQUE = 1000/PPM;
-    public static final float PLAYER_JUMP_FORCE = (600/PPM) * (PlayerWidth/DEFAULT_PLAYER_SIZE);
-    public static final float PLAYER_FRICTION = 1000f/PPM;
+    public static final float PLAYER_WHEEL_TORQUE = 6000;
+    public static final float PLAYER_DENSITY = 0.1f;
+    public static final float PLAYER_JUMP_FORCE = (400/PPM) * (PlayerWidth/DEFAULT_PLAYER_SIZE);
+    public static final float PLAYER_CLIMB_JUMP_FORCE = (150/PPM) * (PlayerWidth/DEFAULT_PLAYER_SIZE);
+    public static final float PLAYER_LEDGE_JUMP_FORCE = (100/PPM) * (PlayerWidth/DEFAULT_PLAYER_SIZE);
 
-    public static final String PlayerUserData = "Player", FootUserData = "Foot", WallUserData = "Wall";
+    public static float PLAYER_BOOST_VALUE = PLAYER_JUMP_FORCE;
+    public static final float PLAYER_FRICTION = 500f/PPM;
+
+    public static final String PlayerUserData = "Player", FootUserData = "Foot",
+            WallUserData = "Wall", GroundUserData = "Ground", DeathUserData = "DEATH";
     public static final Box2DDebugRenderer b2dDebugRenderer = new Box2DDebugRenderer();
 
     //---------------------------------------RAY TRACING TEST FOR PLAYER-------------------------------------------------------//
@@ -64,12 +72,19 @@ public class GlobalVariables {
 
     //RIGHT LEG
     public static Vector2 rightLegP1 = new Vector2(), rightLegP2 = new Vector2();
-    public static float rightSideAngleInDegrees;
+    public static float rightLegAngleInDegrees;
     //LEFT LEG
     public static Vector2 leftLegP1 = new Vector2(), leftLegP2 = new Vector2();
-    public static float leftSideAngleInDegrees;
+    public static float leftLegAngleInDegrees;
 
+    //RIGHT ARM
+    public static Vector2 rightArmP1 = new Vector2(), rightArmP2 = new Vector2();
+    public static float rightSideAngleInDegrees;
+    //LEFT ARM
+    public static Vector2 leftArmP1 = new Vector2(), leftArmP2 = new Vector2();
+    public static float leftSideAngleInDegrees;
     public static int leftSideValue = -1, rightSideValue = -1;
+    public static int leftLegSideValue = -1, rightLegSideValue = -1;
 
     //ATTACK RANGE AND DIRECTION
     public static Vector2 playerPoint = new Vector2(), attackEndPoint = new Vector2();
@@ -77,37 +92,73 @@ public class GlobalVariables {
     public static float ATTACK_RANGE = 5;
     public static Vector2 playerAngleBasis = new Vector2();
     public static int attackAngle;
+    public static int approximatedAttackAngle = 0;
 
 
-    public static RayCastCallback rightLegRayCastCallback = new RayCastCallback() {
+    public static RayCastCallback rightArmRayCastCallback = new RayCastCallback() {
         @Override
         public float reportRayFixture(Fixture fixture, Vector2 point, Vector2 normal, float fraction) {
-            Vector2 v = new Vector2(rightLegP2.x - rightLegP1.x, rightLegP2.y - rightLegP1.y);
+            Vector2 v = new Vector2(rightArmP2.x - rightArmP1.x, rightArmP2.y - rightArmP1.y);
             Vector2 vnorm = v.nor();
             rightSideAngleInDegrees = (float) Math.toDegrees(Math.acos(vnorm.dot(normal))) - 90;
             if(fixture.getUserData() != null && fixture.getUserData().equals(WallUserData)){
                 if(Math.round(rightSideAngleInDegrees) >= 80){
-                    if(held_D && leftSideValue < 0 && !held_A) rightSideValue = 16;
-                    if(held_A) rightSideValue = -100;
+                    if(held_D && leftSideValue < 0) {
+                        rightSideValue = 16;
+                        if(held_A) rightSideValue = -100;
+                    }
                 }
             }
             return 0;
         }
     };
 
-    public static RayCastCallback leftLegRayCastCallback = new RayCastCallback() {
+    public static RayCastCallback leftArmRayCastCallback = new RayCastCallback() {
         @Override
         public float reportRayFixture(Fixture fixture, Vector2 point, Vector2 normal, float fraction) {
-            Vector2 v = new Vector2(leftLegP2.x - leftLegP1.x, leftLegP2.y - leftLegP1.y);
+            Vector2 v = new Vector2(leftArmP2.x - leftArmP1.x, leftArmP2.y - leftArmP1.y);
             Vector2 vnorm = v.nor();
             leftSideAngleInDegrees = (float) Math.toDegrees(Math.acos(vnorm.dot(normal))) - 90;
             if(fixture.getUserData() != null && fixture.getUserData().equals(WallUserData)){
                 if(Math.round(leftSideAngleInDegrees) >= 80){
-                    if(held_A && rightSideValue < 0 && !held_D) leftSideValue = 16;
-                    if(held_D) leftSideValue = -100;
+                    if(held_A && rightSideValue < 0) {
+                        leftSideValue = 16;
+                        if(held_D) leftSideValue = - 100;
+                    }
                 }
             }
+            return 0;
+        }
+    };
 
+    public static RayCastCallback rightLegRayCastCallback = new RayCastCallback() {
+        @Override
+        public float reportRayFixture(Fixture fixture, Vector2 point, Vector2 normal, float fraction) {
+            if(rightSideValue >= 16) return 0;
+
+            Vector2 v = new Vector2(rightLegP2.x - rightLegP1.x, rightLegP2.y - rightLegP1.y);
+            Vector2 vnorm = v.nor();
+            rightLegAngleInDegrees = (float) Math.toDegrees(Math.acos(vnorm.dot(normal))) - 90;
+            if(fixture.getUserData() != null && fixture.getUserData().equals(GroundUserData)){
+                if(held_D)rightLegSideValue = 16;
+            }
+            return 0;
+        }
+    };
+
+    public static RayCastCallback leftLegRayCastCallBack = new RayCastCallback() {
+        @Override
+        public float reportRayFixture(Fixture fixture, Vector2 point, Vector2 normal, float fraction) {
+            if(leftSideValue >= 16) return 0;
+
+            Vector2 v = new Vector2(leftLegP2.x - leftLegP1.x, leftLegP2.y - leftLegP1.y);
+            Vector2 vnorm = v.nor();
+            leftLegAngleInDegrees = (float) Math.toDegrees(Math.acos(vnorm.dot(normal))) - 90;
+            if(fixture.getUserData() != null && fixture.getUserData().equals(GroundUserData)){
+                if(Math.round(leftLegAngleInDegrees) >= 80){
+                    if(held_A)leftLegSideValue = 16;
+                }
+            }
             return 0;
         }
     };
@@ -137,6 +188,10 @@ public class GlobalVariables {
     public static int numFootContacts = 0; //HANDLES THE FOOT - GROUND COLLISION
     public static int remainingDoubleJump = 1; //HANDLES THE DOUBLE JUMP COUNT
     public static int m_jumpTimeout; //TO MAKE SURE THAT YOU CANT JUMP IMMEDIATELY AS THE remainingJumpSteps IS STILL A NONZERO VALUE
+
+    public static Array<Fixture> activationFixtures = new Array<>();
+    public static Array<Fixture> deactivationFixtures = new Array<>();
+    public static Array<Body> bodiesToDestroy = new Array<com.badlogic.gdx.physics.box2d.Body>();
     public static void dispose(){
         mainSpriteBatch.dispose();
     }
